@@ -37,6 +37,7 @@ lerna-debug.log*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
 
-.env
+.env*
+!.env.example
 .vscode
 cdk.out

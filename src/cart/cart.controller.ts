@@ -9,13 +9,12 @@ import {
   HttpStatus,
   HttpCode,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { BasicAuthGuard } from '../auth';
 import { Order, OrderService } from '../order';
 import { AppRequest, getUserIdFromRequest } from '../shared';
-import { calculateCartTotal } from './models-rules';
 import { CartService } from './services';
-import { CartItem } from './models';
 import { CreateOrderDto, PutCartPayload } from 'src/order/type';
 
 @Controller('api/profile/cart')
@@ -25,65 +24,61 @@ export class CartController {
     private orderService: OrderService,
   ) {}
 
-  // @UseGuards(JwtAuthGuard)
   @UseGuards(BasicAuthGuard)
   @Get()
-  findUserCart(@Req() req: AppRequest): CartItem[] {
-    const cart = this.cartService.findOrCreateByUserId(
-      getUserIdFromRequest(req),
-    );
+  async findUserCart(@Req() req: AppRequest) {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) throw new UnauthorizedException();
+    const cart = await this.cartService.findOrCreateUserCart(userId);
 
-    return cart.items;
+    return cart.items ?? [];
   }
 
-  // @UseGuards(JwtAuthGuard)
   @UseGuards(BasicAuthGuard)
   @Put()
-  updateUserCart(
-    @Req() req: AppRequest,
-    @Body() body: PutCartPayload,
-  ): CartItem[] {
-    // TODO: validate body payload...
-    const cart = this.cartService.updateByUserId(
-      getUserIdFromRequest(req),
-      body,
-    );
+  async updateUserCart(@Req() req: AppRequest, @Body() body: PutCartPayload) {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) throw new UnauthorizedException();
+    const cart = await this.cartService.updateUserCart(userId, body);
 
     return cart.items;
   }
 
-  // @UseGuards(JwtAuthGuard)
   @UseGuards(BasicAuthGuard)
   @Delete()
   @HttpCode(HttpStatus.OK)
-  clearUserCart(@Req() req: AppRequest) {
-    this.cartService.removeByUserId(getUserIdFromRequest(req));
+  removeUserCart(@Req() req: AppRequest) {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) throw new UnauthorizedException();
+    this.cartService.removeUserCart(userId);
   }
 
-  // @UseGuards(JwtAuthGuard)
   @UseGuards(BasicAuthGuard)
   @Put('order')
-  checkout(@Req() req: AppRequest, @Body() body: CreateOrderDto) {
+  async checkout(@Req() req: AppRequest, @Body() body: CreateOrderDto) {
     const userId = getUserIdFromRequest(req);
-    const cart = this.cartService.findByUserId(userId);
+    if (!userId) throw new UnauthorizedException();
+    const openCart = await this.cartService.findOpenUserCart(userId);
 
-    if (!(cart && cart.items.length)) {
+    if (!openCart || !openCart.items.length) {
       throw new BadRequestException('Cart is empty');
     }
 
-    const { id: cartId, items } = cart;
-    const total = calculateCartTotal(items);
+    // TODO get total price from dynamodb products table
+    const totalPrice = 120;
+
     const order = this.orderService.create({
       userId,
-      cartId,
-      items: items.map(({ product, count }) => ({
-        productId: product.id,
-        count,
+      cartId: openCart.id,
+      items: openCart.items.map((item) => ({
+        productId: item.product_id,
+        count: item.count,
       })),
       address: body.address,
-      total,
+      total: totalPrice,
     });
-    this.cartService.removeByUserId(userId);
+
+    await this.cartService.removeUserCart(userId);
 
     return {
       order,
