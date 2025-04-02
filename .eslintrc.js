@@ -24,7 +24,7 @@ module.exports = {
   },
   overrides: [
     {
-      files: ['cdk/**/*.ts'],
+      files: ['cdk/**/*.mts'],
       parserOptions: {
         project: 'cdk/tsconfig.json',
       },
