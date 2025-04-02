@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Body,
   HttpCode,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   LocalAuthGuard,
@@ -40,6 +41,7 @@ export class AppController {
   @HttpCode(200)
   @Post('api/auth/login')
   async login(@Request() req: AppRequest) {
+    if (!req.user) throw new BadRequestException();
     const token = this.authService.login(req.user, 'basic');
 
     return token;
