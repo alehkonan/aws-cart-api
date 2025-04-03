@@ -41,3 +41,4 @@ lerna-debug.log*
 !.env.example
 .vscode
 cdk.out
+cdk.context.json
