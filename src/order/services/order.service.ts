@@ -1,50 +1,35 @@
-import { Injectable } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
-import { Order } from '../models';
-import { CreateOrderPayload, OrderStatus } from '../type';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/sequelize';
+import { CreateOrderAttributes, Order } from '../models/order';
 
 @Injectable()
 export class OrderService {
-  private orders: Record<string, Order> = {};
+  constructor(@InjectModel(Order) private orderRepository: typeof Order) {}
 
-  getAll() {
-    return Object.values(this.orders);
+  async getAll() {
+    const orders = await this.orderRepository.findAll();
+    return orders;
   }
 
-  findById(orderId: string): Order {
-    return this.orders[orderId];
-  }
-
-  create(data: CreateOrderPayload) {
-    const id = randomUUID() as string;
-    const order: Order = {
-      id,
-      ...data,
-      statusHistory: [
-        {
-          comment: '',
-          status: OrderStatus.Open,
-          timestamp: Date.now(),
-        },
-      ],
-    };
-
-    this.orders[id] = order;
-
+  async findById(orderId: string) {
+    const order = await this.orderRepository.findByPk(orderId);
     return order;
   }
 
-  // TODO add  type
-  update(orderId: string, data: Order) {
-    const order = this.findById(orderId);
+  async create(createAttributes: CreateOrderAttributes) {
+    const order = await this.orderRepository.create(createAttributes);
+    return order;
+  }
+
+  async update(orderId: string, orderAttributes: CreateOrderAttributes) {
+    const order = await this.findById(orderId);
 
     if (!order) {
-      throw new Error('Order does not exist.');
+      throw new BadRequestException(`Order id ${orderId} does not exist`);
     }
 
-    this.orders[orderId] = {
-      ...data,
-      id: orderId,
-    };
+    const updatedOrder = await order.update(orderAttributes);
+
+    return updatedOrder;
   }
 }

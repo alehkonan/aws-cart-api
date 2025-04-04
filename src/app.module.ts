@@ -7,7 +7,9 @@ import { AppController } from './app.controller';
 import { CartModule } from './cart/cart.module';
 import { AuthModule } from './auth/auth.module';
 import { OrderModule } from './order/order.module';
-import { Cart, CartItem } from './cart/models';
+import { Cart } from './cart/models/cart';
+import { CartItem } from './cart/models/cartItem';
+import { Order } from './order/models/order';
 
 @Module({
   imports: [
@@ -28,8 +30,9 @@ import { Cart, CartItem } from './cart/models';
       database: process.env.DB_NAME,
       username: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
-      models: [Cart, CartItem],
+      models: [Cart, CartItem, Order],
       autoLoadModels: true,
+      sync: { alter: true },
     }),
   ],
   controllers: [AppController],
