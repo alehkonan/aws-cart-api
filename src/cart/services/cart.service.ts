@@ -1,9 +1,7 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { PutCartPayload } from 'src/order/type';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Cart } from '../models/cart';
-import { cartStatuses } from '../models/cartStatus';
-import { CartItem } from '../models';
+import { Cart, cartStatus, CartStatus } from '../models/cart';
+import { CartItem, CreateCartItemAttributes } from '../models/cartItem';
 
 @Injectable()
 export class CartService {
@@ -12,67 +10,41 @@ export class CartService {
     @InjectModel(CartItem) private cartItemRepository: typeof CartItem,
   ) {}
 
-  public async findOpenUserCart(userId: string) {
+  async findOpenCart(userId: string) {
     const openCart = await this.cartRepository.findOne({
-      where: {
-        user_id: userId,
-        status: cartStatuses.open,
-      },
-      include: {
-        all: true,
-      },
+      where: { userId, status: cartStatus.open },
+      include: { all: true },
     });
 
     return openCart;
   }
 
-  public async findOrCreateUserCart(userId: string) {
-    const openCart = await this.findOpenUserCart(userId);
+  async findOrCreateCart(userId: string) {
+    const openCart = await this.findOpenCart(userId);
     if (openCart) return openCart;
-    const newCart = await this.cartRepository.create({ user_id: userId });
+    const newCart = await this.cartRepository.create({ userId });
     return newCart;
   }
 
-  public async updateUserCart(userId: string, payload: PutCartPayload) {
-    const openCart = await this.findOpenUserCart(userId);
-    if (!openCart) {
-      throw new HttpException(
-        'There is no open cart for the current user',
-        HttpStatus.NOT_FOUND,
-      );
-    }
+  async addCartItem(newCartItem: CreateCartItemAttributes) {
+    const cartItem = await this.cartItemRepository.upsert(newCartItem);
 
-    const sameProductItem = openCart.items.find(
-      ({ product_id }) => product_id === payload.product.id,
-    );
-
-    if (sameProductItem) {
-      await this.cartItemRepository.update(
-        {
-          cart_id: openCart.id,
-          product_id: payload.product.id,
-          count: payload.count,
-        },
-        {
-          where: {
-            product_id: payload.product.id,
-          },
-        },
-      );
-    } else {
-      await this.cartItemRepository.create({
-        cart_id: openCart.id,
-        product_id: payload.product.id,
-        count: payload.count,
-      });
-    }
-
-    return openCart.reload();
+    return cartItem;
   }
 
-  async removeUserCart(userId: string) {
+  async updateCartStatus(cartId: string, status: CartStatus) {
+    const cart = await this.cartRepository.findByPk(cartId);
+    if (!cart) throw new Error('Cart not found');
+    const updatedCart = await cart.update({
+      status,
+    });
+
+    return updatedCart;
+  }
+
+  async removeCart(cartId: string) {
     await this.cartRepository.destroy({
-      where: { user_id: userId },
+      where: { id: cartId },
     });
   }
 }

@@ -5,20 +5,28 @@ import {
   DataType,
   Default,
   HasMany,
+  HasOne,
   Model,
   PrimaryKey,
   Table,
   UpdatedAt,
 } from 'sequelize-typescript';
-import { CartStatus } from './cartStatus';
 import { CartItem } from './cartItem';
+import { Order } from '../../order/models/order';
 
-interface CartCreationAttributes {
-  user_id: string;
-}
+export const cartStatus = {
+  open: 'OPEN',
+  ordered: 'ORDERED',
+} as const;
 
-@Table({ tableName: 'carts' })
-export class Cart extends Model<Cart, CartCreationAttributes> {
+export type CartStatus = (typeof cartStatus)[keyof typeof cartStatus];
+
+export type CreateCartAttributes = {
+  userId: string;
+};
+
+@Table({ tableName: 'carts', underscored: true })
+export class Cart extends Model<Cart, CreateCartAttributes> {
   @PrimaryKey
   @Default(DataType.UUIDV4)
   @Column({ type: DataType.UUID })
@@ -26,18 +34,21 @@ export class Cart extends Model<Cart, CartCreationAttributes> {
 
   @AllowNull(false)
   @Column({ type: DataType.UUID })
-  user_id!: string;
+  userId!: string;
 
-  @Default('OPEN')
-  @Column({ type: DataType.ENUM<CartStatus>('OPEN', 'ORDERED') })
+  @Default(cartStatus.open)
+  @Column({ type: DataType.ENUM(...Object.values(cartStatus)) })
   status!: CartStatus;
 
   @CreatedAt
-  created_at!: Date;
+  createdAt!: Date;
 
   @UpdatedAt
-  updated_at!: Date;
+  updatedAt!: Date;
 
   @HasMany(() => CartItem)
-  items!: CartItem[];
+  items: CartItem[] | undefined;
+
+  @HasOne(() => Order)
+  order: Order | undefined;
 }

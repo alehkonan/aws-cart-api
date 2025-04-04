@@ -9,24 +9,29 @@ import {
 } from 'sequelize-typescript';
 import { Cart } from './cart';
 
-interface CartItemCreationAttributes {
-  cart_id: string;
-  product_id: string;
+export type CreateCartItemAttributes = {
+  cartId: string;
+  productId: string;
   count: number;
-}
+};
 
-@Table({ tableName: 'cart_items', timestamps: false })
-export class CartItem extends Model<CartItem, CartItemCreationAttributes> {
-  @PrimaryKey
+@Table({
+  tableName: 'cart_items',
+  timestamps: false,
+  underscored: true,
+})
+export class CartItem extends Model<CartItem, CreateCartItemAttributes> {
   @ForeignKey(() => Cart)
+  @PrimaryKey
   @Column({ type: DataType.UUID, onUpdate: 'CASCADE', onDelete: 'CASCADE' })
-  cart_id!: string;
+  cartId!: string;
 
   @BelongsTo(() => Cart)
   cart!: Cart;
 
+  @PrimaryKey
   @Column({ type: DataType.UUID })
-  product_id!: string;
+  productId!: string;
 
   @Column({ type: DataType.INTEGER })
   count!: number;
