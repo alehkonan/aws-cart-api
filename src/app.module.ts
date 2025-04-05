@@ -7,15 +7,18 @@ import { AppController } from './app.controller';
 import { CartModule } from './cart/cart.module';
 import { AuthModule } from './auth/auth.module';
 import { OrderModule } from './order/order.module';
+import { UsersModule } from './users/users.module';
 import { Cart } from './cart/models/cart';
 import { CartItem } from './cart/models/cartItem';
 import { Order } from './order/models/order';
+import { User } from './users/models/user';
 
 @Module({
   imports: [
     AuthModule,
     CartModule,
     OrderModule,
+    UsersModule,
     ConfigModule.forRoot(),
     SequelizeModule.forRoot({
       dialect: 'postgres',
@@ -30,7 +33,7 @@ import { Order } from './order/models/order';
       database: process.env.DB_NAME,
       username: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
-      models: [Cart, CartItem, Order],
+      models: [Cart, CartItem, Order, User],
       autoLoadModels: true,
       sync: { alter: true },
     }),
