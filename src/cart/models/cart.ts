@@ -1,9 +1,11 @@
 import {
   AllowNull,
+  BelongsTo,
   Column,
   CreatedAt,
   DataType,
   Default,
+  ForeignKey,
   HasMany,
   HasOne,
   Model,
@@ -13,6 +15,7 @@ import {
 } from 'sequelize-typescript';
 import { CartItem } from './cartItem';
 import { Order } from '../../order/models/order';
+import { User } from '../../users/models/user';
 
 export const cartStatus = {
   open: 'OPEN',
@@ -32,9 +35,13 @@ export class Cart extends Model<Cart, CreateCartAttributes> {
   @Column({ type: DataType.UUID })
   id!: string;
 
+  @ForeignKey(() => User)
   @AllowNull(false)
-  @Column({ type: DataType.UUID })
+  @Column({ type: DataType.UUID, onUpdate: 'CASCADE', onDelete: 'NO ACTION' })
   userId!: string;
+
+  @BelongsTo(() => User)
+  user?: User;
 
   @Default(cartStatus.open)
   @Column({ type: DataType.ENUM(...Object.values(cartStatus)) })

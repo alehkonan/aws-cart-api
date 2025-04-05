@@ -13,7 +13,7 @@ import { OrderService } from '../order';
 import { AppRequest, getUserIdFromRequest } from '../shared';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { CartService } from '../cart';
-import { cartStatus } from 'src/cart/models/cart';
+import { cartStatus } from '../cart/models/cart';
 
 @Controller('order')
 export class OrderController {

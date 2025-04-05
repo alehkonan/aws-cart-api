@@ -10,6 +10,7 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { Cart } from '../../cart/models/cart';
+import { User } from '../../users/models/user';
 
 const orderStatus = {
   open: 'OPEN',
@@ -39,9 +40,13 @@ export class Order extends Model<Order, CreateOrderAttributes> {
   @Column({ type: DataType.UUID })
   id!: string;
 
+  @ForeignKey(() => User)
   @AllowNull(false)
-  @Column({ type: DataType.UUID })
+  @Column({ type: DataType.UUID, onUpdate: 'CASCADE', onDelete: 'NO ACTION' })
   userId!: string;
+
+  @BelongsTo(() => User)
+  user?: User;
 
   @ForeignKey(() => Cart)
   @Column({ type: DataType.UUID, onUpdate: 'CASCADE', onDelete: 'SET NULL' })
