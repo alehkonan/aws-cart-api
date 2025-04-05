@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Cart, cartStatus, CartStatus } from '../models/cart';
 import { CartItem, CreateCartItemAttributes } from '../models/cartItem';
+import { Transaction } from 'sequelize';
 
 @Injectable()
 export class CartService {
@@ -32,12 +33,14 @@ export class CartService {
     return cartItem;
   }
 
-  async updateCartStatus(cartId: string, status: CartStatus) {
+  async updateCartStatus(
+    cartId: string,
+    status: CartStatus,
+    transaction?: Transaction,
+  ) {
     const cart = await this.cartRepository.findByPk(cartId);
     if (!cart) throw new Error('Cart not found');
-    const updatedCart = await cart.update({
-      status,
-    });
+    const updatedCart = await cart.update({ status }, { transaction });
 
     return updatedCart;
   }
