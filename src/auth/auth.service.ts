@@ -1,8 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/services/users.service';
-import { User } from '../users/models';
-// import { contentSecurityPolicy } from 'helmet';
+import { User } from '../users/models/user';
+
 type TokenResponse = {
   token_type: string;
   access_token: string;
@@ -15,39 +15,23 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  register(payload: User) {
-    const user = this.usersService.findOne(payload.name);
-
-    if (user) {
-      throw new BadRequestException('User with such name already exists');
-    }
-
-    const { id: userId } = this.usersService.createOne(payload);
-    return { userId };
+  async validateUser(name: string, password: string) {
+    const user = await this.usersService.findByName(name);
+    if (user) return user;
+    return this.usersService.create({ name, password });
   }
 
-  validateUser(name: string, password: string): User {
-    const user = this.usersService.findOne(name);
-
-    if (user) {
-      return user;
-    }
-
-    return this.usersService.createOne({ name, password });
-  }
-
-  login(user: User, type: 'jwt' | 'basic' | 'default'): TokenResponse {
-    const LOGIN_MAP = {
-      jwt: this.loginJWT,
-      basic: this.loginBasic,
-      default: this.loginJWT,
+  generateToken(user: User, type?: 'jwt' | 'basic'): TokenResponse {
+    const generators = {
+      jwt: this.generateJwtToken,
+      basic: this.generateBasicToken,
     };
-    const login = LOGIN_MAP[type];
+    const generate = generators[type ?? 'jwt'];
 
-    return login ? login(user) : LOGIN_MAP.default(user);
+    return generate(user);
   }
 
-  loginJWT(user: User) {
+  private generateJwtToken(user: User): TokenResponse {
     const payload = { username: user.name, sub: user.id };
 
     return {
@@ -56,10 +40,7 @@ export class AuthService {
     };
   }
 
-  loginBasic(user: User) {
-    // const payload = { username: user.name, sub: user.id };
-    console.log(user);
-
+  private generateBasicToken(user: User): TokenResponse {
     function encodeUserToken(user: User) {
       const { name, password } = user;
       const buf = Buffer.from([name, password].join(':'), 'utf8');
