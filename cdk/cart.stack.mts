@@ -81,7 +81,7 @@ export class CartStack extends cdk.Stack {
       bundling: {
         forceDockerBundling: true,
         platform: 'linux/arm64',
-        externalModules: ['@nestjs/*', 'pg*', 'sequelize'],
+        externalModules: ['@nestjs/*', 'pg*', 'sequelize*'],
         nodeModules: [
           '@nestjs/common',
           '@nestjs/config',
@@ -93,6 +93,7 @@ export class CartStack extends cdk.Stack {
           'pg',
           'pg-hstore',
           'sequelize',
+          'sequelize-typescript',
         ],
       },
       environment: {
