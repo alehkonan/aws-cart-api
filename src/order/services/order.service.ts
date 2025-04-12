@@ -1,50 +1,81 @@
-import { Injectable } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
-import { Order } from '../models';
-import { CreateOrderPayload, OrderStatus } from '../type';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/sequelize';
+import { Sequelize } from 'sequelize-typescript';
+import { CreateOrderAttributes, Order } from '../models/order';
+import { CartService } from '../../cart';
+import { cartStatus } from '../../cart/models/cart';
+import { CreateOrderDto } from '../dto/create-order.dto';
 
 @Injectable()
 export class OrderService {
-  private orders: Record<string, Order> = {};
+  constructor(
+    @InjectModel(Order)
+    private orderRepository: typeof Order,
+    private cartService: CartService,
+    private sequelize: Sequelize,
+  ) {}
 
-  getAll() {
-    return Object.values(this.orders);
+  async getAll() {
+    const orders = await this.orderRepository.findAll();
+    return orders;
   }
 
-  findById(orderId: string): Order {
-    return this.orders[orderId];
-  }
+  async checkout(userId: string, orderDto: CreateOrderDto) {
+    const openCart = await this.cartService.findOpenCart(userId);
+    if (!openCart || !openCart.items?.length) {
+      throw new BadRequestException('Cart is empty');
+    }
+    // TODO calculate total price from dynamodb products table. This is out of the scope for the current task
+    const totalPrice = 120;
 
-  create(data: CreateOrderPayload) {
-    const id = randomUUID() as string;
-    const order: Order = {
-      id,
-      ...data,
-      statusHistory: [
+    const transaction = await this.sequelize.transaction();
+
+    try {
+      const order = await this.orderRepository.create(
         {
-          comment: '',
-          status: OrderStatus.Open,
-          timestamp: Date.now(),
+          userId,
+          cartId: openCart.id,
+          total: totalPrice,
+          delivery: orderDto.address && JSON.stringify(orderDto.address),
+          comments: orderDto.address.comment,
+          payment: JSON.stringify(orderDto.items),
         },
-      ],
-    };
+        { transaction },
+      );
 
-    this.orders[id] = order;
+      await this.cartService.updateCartStatus(
+        openCart.id,
+        cartStatus.ordered,
+        transaction,
+      );
 
+      await transaction.commit();
+
+      return order;
+    } catch (error) {
+      await transaction.rollback();
+      throw new InternalServerErrorException('Checkout transaction error');
+    }
+  }
+
+  private async findById(orderId: string) {
+    const order = await this.orderRepository.findByPk(orderId);
     return order;
   }
 
-  // TODO add  type
-  update(orderId: string, data: Order) {
-    const order = this.findById(orderId);
+  async update(orderId: string, orderAttributes: CreateOrderAttributes) {
+    const order = await this.findById(orderId);
 
     if (!order) {
-      throw new Error('Order does not exist.');
+      throw new BadRequestException(`Order id ${orderId} does not exist`);
     }
 
-    this.orders[orderId] = {
-      ...data,
-      id: orderId,
-    };
+    const updatedOrder = await order.update(orderAttributes);
+
+    return updatedOrder;
   }
 }

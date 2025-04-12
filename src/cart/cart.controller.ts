@@ -9,90 +9,55 @@ import {
   HttpStatus,
   HttpCode,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { BasicAuthGuard } from '../auth';
-import { Order, OrderService } from '../order';
 import { AppRequest, getUserIdFromRequest } from '../shared';
-import { calculateCartTotal } from './models-rules';
 import { CartService } from './services';
-import { CartItem } from './models';
-import { CreateOrderDto, PutCartPayload } from 'src/order/type';
+import { RefillCartDto } from './dto/refill-cart.dto';
 
 @Controller('api/profile/cart')
 export class CartController {
-  constructor(
-    private cartService: CartService,
-    private orderService: OrderService,
-  ) {}
+  constructor(private cartService: CartService) {}
 
-  // @UseGuards(JwtAuthGuard)
   @UseGuards(BasicAuthGuard)
   @Get()
-  findUserCart(@Req() req: AppRequest): CartItem[] {
-    const cart = this.cartService.findOrCreateByUserId(
-      getUserIdFromRequest(req),
-    );
+  async findUserCart(@Req() req: AppRequest) {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) throw new UnauthorizedException();
+    const cart = await this.cartService.findOrCreateCart(userId);
 
-    return cart.items;
+    return cart.items ?? [];
   }
 
-  // @UseGuards(JwtAuthGuard)
   @UseGuards(BasicAuthGuard)
   @Put()
-  updateUserCart(
-    @Req() req: AppRequest,
-    @Body() body: PutCartPayload,
-  ): CartItem[] {
-    // TODO: validate body payload...
-    const cart = this.cartService.updateByUserId(
-      getUserIdFromRequest(req),
-      body,
-    );
+  async refillCart(@Req() req: AppRequest, @Body() body: RefillCartDto) {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) throw new UnauthorizedException();
 
-    return cart.items;
+    const openCart = await this.cartService.findOpenCart(userId);
+    if (!openCart) {
+      throw new BadRequestException('There is no open cart for this user');
+    }
+
+    await this.cartService.addCartItem({
+      cartId: openCart.id,
+      productId: body.product.id,
+      count: body.count,
+    });
+
+    const updatedCart = await openCart.reload();
+
+    return updatedCart.items ?? [];
   }
 
-  // @UseGuards(JwtAuthGuard)
   @UseGuards(BasicAuthGuard)
   @Delete()
   @HttpCode(HttpStatus.OK)
-  clearUserCart(@Req() req: AppRequest) {
-    this.cartService.removeByUserId(getUserIdFromRequest(req));
-  }
-
-  // @UseGuards(JwtAuthGuard)
-  @UseGuards(BasicAuthGuard)
-  @Put('order')
-  checkout(@Req() req: AppRequest, @Body() body: CreateOrderDto) {
+  removeUserCart(@Req() req: AppRequest) {
     const userId = getUserIdFromRequest(req);
-    const cart = this.cartService.findByUserId(userId);
-
-    if (!(cart && cart.items.length)) {
-      throw new BadRequestException('Cart is empty');
-    }
-
-    const { id: cartId, items } = cart;
-    const total = calculateCartTotal(items);
-    const order = this.orderService.create({
-      userId,
-      cartId,
-      items: items.map(({ product, count }) => ({
-        productId: product.id,
-        count,
-      })),
-      address: body.address,
-      total,
-    });
-    this.cartService.removeByUserId(userId);
-
-    return {
-      order,
-    };
-  }
-
-  @UseGuards(BasicAuthGuard)
-  @Get('order')
-  getOrder(): Order[] {
-    return this.orderService.getAll();
+    if (!userId) throw new UnauthorizedException();
+    this.cartService.removeCart(userId);
   }
 }
