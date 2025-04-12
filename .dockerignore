@@ -1,0 +1,14 @@
+# code related only to cdk deployment
+/cdk*
+cdk*
+# includes locally built application
+/dist
+# node modules will be installed in docker
+/node_modules
+# not used in docker
+/scripts
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+# Git Files
+.git
+.gitignore
